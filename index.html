@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Prototipo local de comparación entre área predial y UAF de referencia en la ZRC Montaña Caucana.">
+  <title>Comparador predial y UAF | ZRC Montaña Caucana</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+  <link rel="stylesheet" href="./css/estilos.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" aria-label="Proyecto cartográfico ZRC Montaña Caucana">
+      <div class="brand-symbol" aria-hidden="true"><span class="mountain-line">⌁</span></div>
+      <div class="brand-copy"><span class="brand-overline">CARTOGRAFÍA TERRITORIAL</span><strong>ZRC Montaña Caucana</strong></div>
+    </div>
+    <div class="header-right">
+      <span class="project-name">Comparación predial · UAF</span>
+      <span class="local-label">VISOR WEB</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Panel de análisis y filtros">
+      <section class="intro">
+        <div class="eyebrow"><span class="line"></span> ANÁLISIS GEOESPACIAL <span class="vtag">v0.5</span></div>
+        <h1>Predios rurales<br> y <em>UAF.</em></h1>
+        <p>Compara superficies prediales y valores de UAF por vereda, con filtros y visualizaciones temáticas para apoyar la lectura territorial.</p>
+      </section>
+
+      <section class="panel-section" aria-labelledby="title-filtros">
+        <div class="section-head"><h2 id="title-filtros">Explorar territorio</h2><button class="tiny-link" id="btn-reset" type="button">Limpiar filtros</button></div>
+        <label for="municipio">Municipio</label>
+        <select id="municipio" aria-label="Municipio: Inzá" title="Este visor se concentra en Inzá">
+          <option value="Inzá" selected>Inzá</option>
+        </select>
+        <label for="estado">Relación de superficies</label>
+        <select id="estado" aria-label="Filtrar relación predio UAF">
+          <option value="">Todas las categorías</option>
+          <option value="menor">Menor que la UAF</option>
+          <option value="mayor">Igual o mayor que la UAF</option>
+          <option value="revision">Requiere revisión</option>
+          <option value="sin_referencia">Sin UAF asignada</option>
+        </select>
+        <label for="codigo">Buscar código predial</label>
+        <div class="search-wrap"><input id="codigo" type="search" placeholder="Escribe parte del código..." autocomplete="off" aria-label="Buscar código predial"><button id="btn-buscar" type="button" aria-label="Buscar predio">⌕</button></div>
+        <div id="resultados-busqueda" class="results-search" hidden></div>
+      </section>
+
+      <section class="panel-section" aria-labelledby="title-capas">
+        <div class="section-head"><h2 id="title-capas">Capas visibles</h2></div>
+        <label class="toggle"><input id="ver-uaf" type="checkbox"><span>Capa UAF</span><i class="swatch swatch-uaf"></i></label>
+        <label class="toggle"><input id="ver-etiquetas" type="checkbox"><span>Nombres de veredas UAF (zoom 10+)</span><i class="swatch swatch-label"></i></label>
+        <label class="toggle"><input id="ver-veredas" type="checkbox" checked><span>Límites veredales disponibles</span><i class="swatch swatch-veredas"></i></label>
+        <label class="toggle"><input id="ver-baldios" type="checkbox"><span>Posibles baldíos (13)</span><i class="swatch swatch-baldios"></i></label>
+        <label for="mapa-base" class="base-label">Mapa base</label>
+        <select id="mapa-base" aria-label="Seleccionar imagen de fondo">
+          <option value="satelite">Satélite de alta resolución (Esri World Imagery)</option>
+          <option value="osm">Calles y relieve básico (OpenStreetMap)</option>
+          <option value="nimbo">Satélite abierto Sentinel-2 (10 m, NIMBO)</option>
+          <option value="ninguno">Sin mapa base</option>
+        </select>
+        <p class="base-nota">Imágenes Esri sujetas a condiciones del proveedor; requieren internet. NIMBO es una alternativa gratuita de menor resolución.</p>
+      </section>
+
+      <section class="panel-section" aria-labelledby="title-veredas">
+        <div class="section-head"><h2 id="title-veredas">Filtrar por veredas de Inzá</h2></div>
+        <label for="buscar-vereda">Selecciona una o varias veredas</label>
+        <input id="buscar-vereda" type="search" class="vereda-search" placeholder="Buscar vereda de Inzá..." autocomplete="off" aria-label="Buscar veredas de Inzá">
+        <div class="veredas-controls"><span id="veredas-count">Todas las veredas</span><button type="button" class="tiny-link" id="btn-seleccionar-veredas">Seleccionar visibles</button><button type="button" class="tiny-link" id="btn-limpiar-veredas">Limpiar</button></div>
+        <div id="veredas-opciones" class="veredas-lista" role="group" aria-label="Selecciona una o varias veredas de Inzá"></div>
+        <button type="button" class="zoom-veredas" id="btn-zoom-veredas">Acercar a las veredas seleccionadas</button>
+      </section>
+
+      <section class="panel-section detail-section" aria-live="polite">
+        <div class="section-head"><h2>Ficha del predio</h2><span id="selected-marker" class="mini-tag">SIN SELECCIÓN</span></div>
+        <div id="detalle"><p class="empty-detail">Haz clic sobre un predio coloreado para consultar su código, el área predial, la UAF asignada y la vereda de referencia.</p></div>
+      </section>
+      <div class="sidebar-bottom"><span>ZRC Montaña Caucana · Inzá</span><span>Información cartográfica para consulta.</span></div>
+    </aside>
+
+    <main class="main-area">
+      <div class="toolbar">
+        <div class="toolbar-left"><div class="eyebrow muted">MAPA INTERACTIVO <span class="small-dot">·</span> CAUCA, COLOMBIA</div><div class="toolbar-sub">Superficie predial y UAF por vereda</div></div>
+        <div class="toolbar-buttons"><div class="mode-switch" role="group" aria-label="Vista del mapa"><button id="modo-simple" type="button" class="active" aria-pressed="true">Mapa temático</button><button id="modo-comparar" type="button" aria-pressed="false">Dos paneles</button></div><button id="btn-exportar" class="icon-button" type="button" title="Exportar tabla filtrada a CSV">↓ <span>CSV</span></button></div>
+      </div>
+
+      <div class="statrow statrow-compact" aria-live="polite">
+        <div class="stat"><span class="stat-label">PREDIOS EN VISTA</span><strong id="stat-total">—</strong><small>predios con filtros</small></div>
+        <div class="stat"><span class="stat-label">CON UAF ASIGNADA</span><strong id="stat-con-uaf">—</strong><small>casos comparables</small></div>
+        <div class="stat"><span class="stat-label">MENOR A UAF</span><strong id="stat-menor">—</strong><small>predios clasificados</small></div>
+        <div class="stat"><span class="stat-label">IGUAL O MAYOR A UAF</span><strong id="stat-mayor">—</strong><small>predios clasificados</small></div>
+      </div>
+
+      <div class="map-wrapper" id="map-wrapper">
+        <div class="map-pane left-pane">
+          <div class="pane-controls">
+            <label for="visualizacion-izq" id="label-visualizacion-izq">Visualización del mapa</label>
+            <select id="visualizacion-izq" aria-label="Elegir visualización del mapa izquierdo">
+              <option value="relacion">Predios: menor o igual / mayor a UAF</option>
+              <option value="superficie">Predios: rangos de área</option>
+              <option value="uaf">Capa UAF: hectáreas de referencia</option>
+            </select>
+          </div>
+          <div id="mapa" class="map" aria-label="Mapa izquierdo interactivo"></div>
+          <div id="legend-izq" class="pane-legend" aria-label="Leyenda izquierda"></div>
+        </div>
+        <div class="map-pane right-pane" id="pane-right" hidden>
+          <div class="pane-controls">
+            <label for="visualizacion-der">Mostrar a la derecha</label>
+            <select id="visualizacion-der" aria-label="Elegir visualización del mapa derecho">
+              <option value="uaf" selected>Capa UAF: hectáreas de referencia</option>
+              <option value="superficie">Predios: rangos de área</option>
+              <option value="relacion">Predios: menor o igual / mayor a UAF</option>
+            </select>
+          </div>
+          <div id="mapa-comparacion" class="map" aria-label="Mapa derecho interactivo"></div>
+          <div id="legend-der" class="pane-legend" aria-label="Leyenda derecha"></div>
+        </div>
+        <div class="map-status" id="map-status">Cargando cartografía local…</div>
+        <div class="resumen-seleccion" id="resumen-seleccion" aria-live="polite" hidden></div>
+      </div>
+      <div class="map-below">Haz clic en cualquier predio para ver su ficha. En dos paneles, cada mapa tiene su propio selector de simbología y ambos se desplazan juntos.</div>
+    </main>
+  </div>
+
+  <div id="app-error" class="app-error" role="alert" hidden></div>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <script src="./js/visor.js" defer></script>
+</body>
+</html>
